@@ -57,4 +57,15 @@ export class SessionStore {
   getMessages(): ChatCompletionMessageParam[] {
     return this.messages;
   }
+
+  /** 整体重写会话文件（用于三级摘要压缩后替换历史消息），先写临时文件再原子替换 */
+  replaceMessages(messages: ChatCompletionMessageParam[]): void {
+    fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+    const tempPath = `${this.filePath}.tmp`;
+    const content =
+      messages.length > 0 ? `${messages.map((message) => JSON.stringify(message)).join("\n")}\n` : "";
+    fs.writeFileSync(tempPath, content, "utf8");
+    fs.renameSync(tempPath, this.filePath);
+    this.messages = messages;
+  }
 }

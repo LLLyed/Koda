@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { coreTools, getCoreTool, getCoreToolSpecs } from "../tools/coreTools";
 import type { ToolContext } from "../tools/coreTools";
+import { ContextManager } from "./contextManager";
 import type { SessionStore } from "./sessionStore";
 
 const DEFAULT_MODEL = "deepseek-chat";
@@ -31,6 +32,7 @@ export class QueryEngine {
   private readonly client: OpenAI;
   private readonly sessionStore: SessionStore;
   private readonly toolContext: ToolContext;
+  private readonly contextManager: ContextManager;
   private readonly maxSteps: number;
   private readonly model: string;
 
@@ -45,6 +47,11 @@ export class QueryEngine {
       maxRetries: 0,
     });
     this.toolContext = { cwd: process.cwd(), confirm: options.confirm };
+    this.contextManager = new ContextManager({
+      client: this.client,
+      model: this.model,
+      persistCompacted: (messages) => this.sessionStore.replaceMessages(messages),
+    });
   }
 
   async runUserTurn(userInput: string): Promise<void> {
@@ -111,9 +118,14 @@ export class QueryEngine {
     content: string;
     toolCalls: AssembledToolCall[];
   }> {
+    // 请求前执行二级微压缩 / 三级摘要压缩，返回治理后的消息视图
+    const viewMessages = await this.contextManager.prepareMessages(
+      this.sessionStore.getMessages(),
+    );
+
     const stream = await this.client.chat.completions.create({
       model: this.model,
-      messages: this.sessionStore.getMessages(),
+      messages: viewMessages,
       tools: getCoreToolSpecs(),
       stream: true,
     });
@@ -175,11 +187,16 @@ export class QueryEngine {
     }
 
     try {
-      const result = await tool.execute(args, this.toolContext);
+      // 工具返回后立即执行一级治理：超长结果截断头尾
+      const result = this.contextManager.budgetToolResult(
+        await tool.execute(args, this.toolContext),
+      );
       process.stdout.write(`[工具结果] ${preview(result)}\n`);
       return result;
     } catch (error) {
-      const message = `工具执行异常：${(error as Error).message}`;
+      const message = this.contextManager.budgetToolResult(
+        `工具执行异常：${(error as Error).message}`,
+      );
       process.stdout.write(`${message}\n`);
       return message;
     }
