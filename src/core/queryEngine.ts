@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
-import { coreTools, getCoreTool, getCoreToolSpecs } from "../tools/coreTools";
 import type { ToolContext } from "../tools/coreTools";
+import { executeExposedTool, getExposedToolSpecs } from "../tools/registry";
 import { ContextManager } from "./contextManager";
 import type { SessionStore } from "./sessionStore";
 
@@ -126,7 +126,7 @@ export class QueryEngine {
     const stream = await this.client.chat.completions.create({
       model: this.model,
       messages: viewMessages,
-      tools: getCoreToolSpecs(),
+      tools: getExposedToolSpecs(),
       stream: true,
     });
 
@@ -168,16 +168,9 @@ export class QueryEngine {
     return { content, toolCalls };
   }
 
-  /** 执行单个工具调用：JSON 解析 → Zod 校验 → 执行（含人工确认）→ 结果回填 */
+  /** 执行单个工具调用：JSON 解析 → Capability Layer 调度（含 Zod 校验与人工确认）→ 结果回填 */
   private async executeToolCall(call: AssembledToolCall): Promise<string> {
     process.stdout.write(`[工具] ${call.name} ${preview(call.argumentsText)}\n`);
-
-    const tool = getCoreTool(call.name);
-    if (!tool) {
-      return `工具调用失败：不存在名为 "${call.name}" 的工具。可用工具：${coreTools
-        .map((item) => item.name)
-        .join(", ")}`;
-    }
 
     let args: unknown;
     try {
@@ -189,7 +182,7 @@ export class QueryEngine {
     try {
       // 工具返回后立即执行一级治理：超长结果截断头尾
       const result = this.contextManager.budgetToolResult(
-        await tool.execute(args, this.toolContext),
+        await executeExposedTool(call.name, args, this.toolContext),
       );
       process.stdout.write(`[工具结果] ${preview(result)}\n`);
       return result;
