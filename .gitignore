@@ -4,6 +4,7 @@ node_modules
 # output
 out
 dist
+build
 *.tgz
 
 # code coverage
@@ -12,15 +13,13 @@ coverage
 
 # logs
 logs
-_.log
+*.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # dotenv environment variable files
 .env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
+.env.*
+!.env.example
 
 # local session storage
 .sessions/
@@ -33,5 +32,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # IntelliJ based IDEs
 .idea
 
-# Finder (MacOS) folder config
+# VS Code local settings
+.vscode
+
+# OS generated files
 .DS_Store
+Thumbs.db
