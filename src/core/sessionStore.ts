@@ -5,11 +5,18 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 /** 会话目录：项目根目录下的 .sessions/ */
 export const SESSIONS_DIR = path.resolve(process.cwd(), ".sessions");
 
+/** QueryEngine 所需的最小消息存储接口（磁盘 JSONL 或纯内存实现） */
+export interface MessageStore {
+  getMessages(): ChatCompletionMessageParam[];
+  append(message: ChatCompletionMessageParam): void;
+  replaceMessages(messages: ChatCompletionMessageParam[]): void;
+}
+
 /**
  * JSONL 会话持久化：
  * 每条消息实时追加为一行 JSON；初始化时逐行反序列化，恢复完整的 messages 数组。
  */
-export class SessionStore {
+export class SessionStore implements MessageStore {
   readonly sessionId: string;
   readonly filePath: string;
   private messages: ChatCompletionMessageParam[] = [];
@@ -66,6 +73,23 @@ export class SessionStore {
       messages.length > 0 ? `${messages.map((message) => JSON.stringify(message)).join("\n")}\n` : "";
     fs.writeFileSync(tempPath, content, "utf8");
     fs.renameSync(tempPath, this.filePath);
+    this.messages = messages;
+  }
+}
+
+/** 纯内存消息存储：供 Subagent 使用，独立空上下文且不落盘 */
+export class MemorySessionStore implements MessageStore {
+  private messages: ChatCompletionMessageParam[] = [];
+
+  getMessages(): ChatCompletionMessageParam[] {
+    return this.messages;
+  }
+
+  append(message: ChatCompletionMessageParam): void {
+    this.messages.push(message);
+  }
+
+  replaceMessages(messages: ChatCompletionMessageParam[]): void {
     this.messages = messages;
   }
 }

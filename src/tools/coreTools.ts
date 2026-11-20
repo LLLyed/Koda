@@ -8,6 +8,8 @@ import type { ChatCompletionTool } from "openai/resources/chat/completions";
 export interface ToolContext {
   cwd: string;
   confirm: (question: string) => Promise<boolean>;
+  /** 当前会话 ID（用于遥测或将子代理绑定到主会话） */
+  sessionId?: string;
 }
 
 export interface ToolDefinition {

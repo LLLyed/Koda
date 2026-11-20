@@ -99,6 +99,28 @@ export const exposedTools: ToolDefinition[] = [
   executeExtraToolTool,
 ];
 
+/** 非只读 Subagent 使用的工具集（不含 SpawnSubagent，避免嵌套递归） */
+export const subagentTools: ToolDefinition[] = exposedTools;
+
+const READONLY_EXTRA_TOOL_NAMES = new Set([
+  "list_dir",
+  "search_text",
+  "git_status",
+  "git_diff",
+  "git_log",
+  "get_system_info",
+  "check_port",
+  "count_lines",
+  "find_files",
+  "http_get",
+]);
+
+/** 只读 Subagent 的工具集：read_file + 只读扩展工具，实现权限隔离 */
+export const readonlyTools: ToolDefinition[] = [
+  ...coreTools.filter((tool) => tool.name === "read_file"),
+  ...extraTools.filter((tool) => READONLY_EXTRA_TOOL_NAMES.has(tool.name)),
+];
+
 const exposedToolMap = new Map(exposedTools.map((tool) => [tool.name, tool]));
 
 export function getExposedTool(name: string): ToolDefinition | undefined {

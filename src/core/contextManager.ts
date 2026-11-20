@@ -23,6 +23,8 @@ export interface ContextManagerOptions {
   model: string;
   /** 三级压缩成功后整体重写 JSONL 的回调 */
   persistCompacted: (messages: ChatCompletionMessageParam[]) => void;
+  /** 是否输出压缩日志，默认 true（Subagent 静默模式设为 false） */
+  verbose?: boolean;
   /** 触发三级摘要的字符阈值，默认 32000 */
   thresholdChars?: number;
   /** 二级微压缩保留完整工具输出的最近轮数，默认 3 */
@@ -45,6 +47,7 @@ export class ContextManager {
   private readonly client: OpenAI;
   private readonly model: string;
   private readonly persistCompacted: (messages: ChatCompletionMessageParam[]) => void;
+  private readonly verbose: boolean;
   private readonly thresholdChars: number;
   private readonly keepToolRounds: number;
   private readonly keepRecentRounds: number;
@@ -53,6 +56,7 @@ export class ContextManager {
     this.client = options.client;
     this.model = options.model;
     this.persistCompacted = options.persistCompacted;
+    this.verbose = options.verbose ?? true;
     this.thresholdChars = options.thresholdChars ?? DEFAULT_THRESHOLD_CHARS;
     this.keepToolRounds = options.keepToolRounds ?? DEFAULT_KEEP_TOOL_ROUNDS;
     this.keepRecentRounds = options.keepRecentRounds ?? DEFAULT_KEEP_RECENT_ROUNDS;
@@ -96,10 +100,16 @@ export class ContextManager {
       ];
 
       this.persistCompacted(compacted);
-      console.log(`\n[上下文压缩] 已将 ${staleRounds.length} 轮历史对话压缩为结构化摘要。`);
+      if (this.verbose) {
+        console.log(`\n[上下文压缩] 已将 ${staleRounds.length} 轮历史对话压缩为结构化摘要。`);
+      }
       return this.microcompact(compacted);
     } catch (error) {
-      console.warn(`\n[上下文压缩] 三级摘要失败，降级为局部微压缩：${(error as Error).message}`);
+      if (this.verbose) {
+        console.warn(
+          `\n[上下文压缩] 三级摘要失败，降级为局部微压缩：${(error as Error).message}`,
+        );
+      }
       return view;
     }
   }

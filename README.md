@@ -23,7 +23,7 @@ npx bun run src/index.ts --resume session_<timestamp>
 - [x] Phase 1：CLI 交互、核心工具（read_file / write_file / run_bash + y/n 人工确认）、JSONL 会话持久化、流式 Agent Loop 与指数退避重试
 - [x] Phase 2：三级上下文治理（工具结果预算截断、Microcompact 局部微压缩、阈值摘要压缩并回写 JSONL）
 - [x] Phase 3：扩展工具池（12 个）+ TF-IDF 余弦相似度检索 + Capability Layer（SearchExtraTools / ExecuteExtraTool）
-- [ ] Phase 4：Subagent 隔离 + Langfuse 可观测性
+- [x] Phase 4：Subagent 隔离（SpawnSubagent / 只读工具隔离 / 独立内存上下文）+ Langfuse 链路追踪（无 Key 静默降级）
 
 ## 脚本
 

@@ -2,6 +2,9 @@ import "dotenv/config";
 import * as readline from "node:readline";
 import { QueryEngine } from "./core/queryEngine";
 import { SessionStore } from "./core/sessionStore";
+import { spawnSubagentTool } from "./subagent/runner";
+import { telemetry } from "./telemetry/langfuse";
+import { exposedTools } from "./tools/registry";
 
 const SYSTEM_PROMPT = `你是 Koda，一个运行在用户终端中的轻量级编程智能体。
 
@@ -74,14 +77,24 @@ async function main(): Promise<void> {
     return answer === "y" || answer === "yes" || answer === "是";
   };
 
-  const engine = new QueryEngine({ sessionStore: store, confirm });
+  const engine = new QueryEngine({
+    sessionStore: store,
+    confirm,
+    tools: [...exposedTools, spawnSubagentTool],
+    sessionId,
+  });
+
+  const flushAndExit = async (): Promise<void> => {
+    await telemetry.shutdown();
+    process.exit(0);
+  };
 
   const shutdown = (message: string): void => {
     exiting = true;
     console.log(message);
     printResumeHint(sessionId);
     rl.close();
-    process.exit(0);
+    void flushAndExit();
   };
 
   rl.on("SIGINT", () => shutdown("\n[Koda] 已中断。"));
@@ -89,7 +102,7 @@ async function main(): Promise<void> {
     if (!exiting) {
       exiting = true;
       printResumeHint(sessionId);
-      process.exit(0);
+      void flushAndExit();
     }
   });
 
